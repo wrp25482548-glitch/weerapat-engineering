@@ -29,8 +29,7 @@
       ]
     },
     "types": [
-      "node",
-      "@cloudflare/workers-types"
+      "node"
     ]
   },
   "include": [
@@ -44,6 +43,10 @@
   "exclude": [
     "node_modules",
     "examples",
+    "db",
+    "worker",
+    "vite.config.ts",
+    "cloudflare-env.d.ts",
     "dist",
     ".vinext",
     ".wrangler",
