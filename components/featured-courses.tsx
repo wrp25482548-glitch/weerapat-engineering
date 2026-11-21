@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Program = {
   id: string;
@@ -16,8 +16,20 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
   const rail = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
 
+  useEffect(() => {
+    if (programs.length < 2) return;
+    const timer = window.setInterval(() => {
+      setActive((current) => {
+        const next = (current + 1) % programs.length;
+        rail.current?.children[next]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+        return next;
+      });
+    }, 5500);
+    return () => window.clearInterval(timer);
+  }, [programs.length]);
+
   function go(index: number) {
-    const next = Math.max(0, Math.min(programs.length - 1, index));
+    const next = (index + programs.length) % programs.length;
     rail.current?.children[next]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
     setActive(next);
   }
@@ -42,10 +54,10 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
 
   return <div className="featured-slider">
     <div className="slider-controls" aria-label="เลื่อนคอร์สแนะนำ">
-      <button onClick={() => go(active - 1)} disabled={active === 0} aria-label="คอร์สก่อนหน้า">←</button>
-      <button onClick={() => go(active + 1)} disabled={active === programs.length - 1} aria-label="คอร์สถัดไป">→</button>
+      <button onClick={() => go(active - 1)} aria-label="คอร์สก่อนหน้า">←</button>
+      <button onClick={() => go(active + 1)} aria-label="คอร์สถัดไป">→</button>
     </div>
-    <div className="featured-rail" ref={rail} onScroll={syncActive}>
+    <div className="featured-rail" ref={rail} onScroll={syncActive} aria-label="คอร์สแนะนำ เลื่อนซ้ายหรือขวาเพื่อดูคอร์สทั้งหมด">
       {programs.map((program, index) => <article className="featured-card" key={program.id}>
         <div className="featured-image">
           <Image src={program.coverImage || "/covers/solidworks-design.png"} alt={program.title} fill sizes="(max-width: 760px) 88vw, 430px" />
