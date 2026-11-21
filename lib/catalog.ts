@@ -3,7 +3,39 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 const mapProgram=(r:any)=>({...r,coverImage:r.cover_image,priceThb:r.price_thb,sortOrder:r.sort_order});
 const mapTopic=(r:any)=>({...r,programId:r.program_id,coverImage:r.cover_image,sortOrder:r.sort_order});
 const mapLesson=(r:any)=>({...r,topicId:r.topic_id,videoKey:r.video_path,accessType:r.access_type,coverImage:r.cover_image,sortOrder:r.sort_order});
+const fallbackCatalog = [
+  {
+    id: "solidworks-design",
+    slug: "solidworks-design",
+    title: "SolidWorks Design",
+    subtitle: "ออกแบบชิ้นงาน 3D และ Assembly",
+    description: "สอนอ่าน Drawing ขึ้นโมเดล Part ประกอบ Assembly และใช้เครื่องมือต่าง ๆ ใน SolidWorks ผ่านชิ้นงานจริง",
+    coverImage: "/covers/solidworks-design.png",
+    status: "published",
+    topics: [],
+  },
+  {
+    id: "electronics-microcontrollers",
+    slug: "electronics-microcontrollers",
+    title: "Electronics & Microcontrollers",
+    subtitle: "เรียนรู้วงจรและสร้างโปรเจกต์ด้วยไมโครคอนโทรลเลอร์",
+    description: "รู้จักอุปกรณ์อิเล็กทรอนิกส์ การต่อวงจร และการเขียนโปรแกรม Arduino/ESP32 เพื่อนำไปใช้งานจริง",
+    coverImage: "/covers/electronics-microcontrollers.png",
+    status: "coming-soon",
+    topics: [],
+  },
+  {
+    id: "ai-industrial-web-apps",
+    slug: "ai-industrial-web-apps",
+    title: "AI for Industrial Web Apps",
+    subtitle: "สร้าง Web App สำหรับงานอุตสาหกรรมด้วย AI",
+    description: "เรียนรู้แนวคิดด้านการผลิต วิศวกรรมอุตสาหการ และซ่อมบำรุง พร้อมใช้ AI สร้างระบบที่ทดลองใช้งานได้จริง",
+    coverImage: "/covers/ai-industrial-web-apps.png",
+    status: "coming-soon",
+    topics: [],
+  },
+];
 export async function ensureOwner(user:ChatGPTUser){const sb=await createSupabaseServer();const {data}=await sb.from("profiles").select("role").eq("id",user.userId).single();if(data?.role!=="admin")throw new Error("บัญชีนี้ไม่มีสิทธิ์เข้าหลังบ้าน");return user;}
 export async function ensureLearner(user:ChatGPTUser){const sb=await createSupabaseServer();await sb.from("profiles").update({email:user.email,display_name:user.displayName}).eq("id",user.userId);return user;}
-export async function getCatalog(){const sb=await createSupabaseServer();const [{data:ps,error:pe},{data:ts,error:te},{data:ls,error:le}]=await Promise.all([sb.from("programs").select("*").order("sort_order"),sb.from("topics").select("*").order("sort_order"),sb.from("lessons").select("*").order("sort_order")]);if(pe||te||le)throw pe||te||le;const programs=(ps||[]).map(mapProgram),topics=(ts||[]).map(mapTopic),lessons=(ls||[]).map(mapLesson);return programs.map((p:any)=>({...p,topics:topics.filter((t:any)=>t.programId===p.id).map((t:any)=>({...t,lessons:lessons.filter((l:any)=>l.topicId===t.id)}))}));}
+export async function getCatalog(){const sb=await createSupabaseServer();const [{data:ps,error:pe},{data:ts,error:te},{data:ls,error:le}]=await Promise.all([sb.from("programs").select("*").order("sort_order"),sb.from("topics").select("*").order("sort_order"),sb.from("lessons").select("*").order("sort_order")]);if(pe||te||le){console.warn("Catalog database access unavailable; using local preview data.",pe||te||le);return fallbackCatalog;}const programs=(ps||[]).map(mapProgram),topics=(ts||[]).map(mapTopic),lessons=(ls||[]).map(mapLesson);return programs.map((p:any)=>({...p,topics:topics.filter((t:any)=>t.programId===p.id).map((t:any)=>({...t,lessons:lessons.filter((l:any)=>l.topicId===t.id)}))}));}
 export async function getLearners(){const sb=await createSupabaseServer();const {data}=await sb.from("profiles").select("id,email,display_name,role").order("created_at");return (data||[]).map((r:any)=>({userId:r.id,email:r.email,displayName:r.display_name,role:r.role}));}
