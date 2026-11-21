@@ -1,7 +1,5 @@
 import { chatGPTSignOutPath, requireChatGPTUser } from "@/app/chatgpt-auth";
-import { getDb } from "@/db";
-import { learners } from "@/db/schema";
-import { ensureLearner, ensureOwner, getCatalog } from "@/lib/catalog";
+import { ensureLearner, ensureOwner, getCatalog, getLearners } from "@/lib/catalog";
 import { VideoUploader } from "@/components/video-uploader";
 import { addLesson, addProgram, addTopic, grantLessonAccess, revokeLessonAccess, updateLesson, updateProgram, updateTopic } from "./actions";
 
@@ -10,7 +8,7 @@ const field = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 te
 const button = "rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700";
 
 export default async function AdminPage() {
-  const user = await requireChatGPTUser("/admin"); await ensureOwner(user); await ensureLearner(user); const catalog = await getCatalog(); const learnerRows=await getDb().select().from(learners);
+  const user = await requireChatGPTUser("/admin"); await ensureOwner(user); await ensureLearner(user); const catalog = await getCatalog(); const learnerRows=await getLearners();
   return <main className="min-h-screen bg-slate-100 text-slate-950">
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur"><div className="mx-auto flex max-w-7xl items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-blue-600">Weerapat Engineering</p><h1 className="text-xl font-extrabold">หลังบ้านจัดการบทเรียน</h1></div><div className="text-right text-sm"><p className="font-semibold">{user.displayName}</p><a className="text-slate-500 hover:text-blue-600" href={chatGPTSignOutPath("/")} target="_top">ออกจากระบบ</a></div></div></header>
     <div className="mx-auto grid max-w-7xl gap-6 px-5 py-8 lg:grid-cols-[280px_1fr]">

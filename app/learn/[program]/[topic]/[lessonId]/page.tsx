@@ -1,16 +1,16 @@
-import { eq } from "drizzle-orm";
 import { chatGPTSignInPath, getChatGPTUser } from "@/app/chatgpt-auth";
-import { getDb } from "@/db";
-import { lessons, topics } from "@/db/schema";
 import { canViewLesson } from "@/lib/access";
 import { ensureLearner } from "@/lib/catalog";
+import { createSupabaseServer } from "@/lib/supabase/server";
 
 export const dynamic="force-dynamic";
 
 export default async function LessonPage({params}:{params:Promise<{program:string;topic:string;lessonId:string}>}){
   const route=await params;
-  const [lesson]=await getDb().select().from(lessons).where(eq(lessons.id,Number(route.lessonId))).limit(1);
-  const [topic]=lesson?await getDb().select().from(topics).where(eq(topics.id,lesson.topicId)).limit(1):[];
+  const sb=await createSupabaseServer();
+  const {data:rawLesson}=await sb.from("lessons").select("*").eq("id",route.lessonId).maybeSingle();
+  const lesson=rawLesson?{...rawLesson,topicId:rawLesson.topic_id,videoKey:rawLesson.video_path,accessType:rawLesson.access_type,coverImage:rawLesson.cover_image}:null;
+  const {data:topic}=lesson?await sb.from("topics").select("*").eq("id",lesson.topicId).maybeSingle():{data:null};
   const user=await getChatGPTUser();
   if(user)await ensureLearner(user);
   const allowed=Boolean(lesson&&await canViewLesson(user,lesson));

@@ -1,23 +1,16 @@
 "use server";
-
-import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireChatGPTUser } from "@/app/chatgpt-auth";
-import { getDb } from "@/db";
-import { entitlements, lessons, programs, topics } from "@/db/schema";
 import { ensureOwner } from "@/lib/catalog";
-
-async function authorize() { const user = await requireChatGPTUser("/admin"); await ensureOwner(user); }
-const value = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
-const number = (data: FormData, key: string) => Number(value(data, key) || 0);
-const slugify = (input: string) => input.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `item-${Date.now()}`;
-function refresh() { revalidatePath("/"); revalidatePath("/learn"); revalidatePath("/admin"); }
-
-export async function addProgram(data: FormData) { await authorize(); const title=value(data,"title"); if(!title) return; await getDb().insert(programs).values({ slug:slugify(value(data,"slug")||title), title, subtitle:value(data,"subtitle"), description:value(data,"description"), coverImage:value(data,"coverImage"), priceThb:number(data,"priceThb"), status:value(data,"status")||"draft", sortOrder:number(data,"sortOrder") }); refresh(); }
-export async function updateProgram(data: FormData) { await authorize(); const id=number(data,"id"); await getDb().update(programs).set({ title:value(data,"title"), subtitle:value(data,"subtitle"), description:value(data,"description"), coverImage:value(data,"coverImage"), priceThb:number(data,"priceThb"), status:value(data,"status"), sortOrder:number(data,"sortOrder") }).where(eq(programs.id,id)); refresh(); }
-export async function addTopic(data: FormData) { await authorize(); const title=value(data,"title"); if(!title) return; await getDb().insert(topics).values({ programId:number(data,"programId"), slug:slugify(value(data,"slug")||title), title, description:value(data,"description"), coverImage:value(data,"coverImage"), status:value(data,"status")||"draft", sortOrder:number(data,"sortOrder") }); refresh(); }
-export async function updateTopic(data: FormData) { await authorize(); const id=number(data,"id"); await getDb().update(topics).set({ title:value(data,"title"), description:value(data,"description"), coverImage:value(data,"coverImage"), status:value(data,"status"), sortOrder:number(data,"sortOrder") }).where(eq(topics.id,id)); refresh(); }
-export async function addLesson(data: FormData) { await authorize(); const title=value(data,"title"); if(!title) return; await getDb().insert(lessons).values({ topicId:number(data,"topicId"), title, description:value(data,"description"), accessType:value(data,"accessType")==="free"?"free":"paid", coverImage:value(data,"coverImage"), duration:value(data,"duration"), status:value(data,"status")||"draft", sortOrder:number(data,"sortOrder") }); refresh(); }
-export async function updateLesson(data: FormData) { await authorize(); const id=number(data,"id"); await getDb().update(lessons).set({ title:value(data,"title"), description:value(data,"description"), accessType:value(data,"accessType")==="free"?"free":"paid", coverImage:value(data,"coverImage"), duration:value(data,"duration"), status:value(data,"status"), sortOrder:number(data,"sortOrder") }).where(eq(lessons.id,id)); refresh(); }
-export async function grantLessonAccess(data: FormData) { await authorize(); const userId=value(data,"userId"),lessonId=number(data,"lessonId"); if(!userId||!lessonId)return; await getDb().insert(entitlements).values({userId,lessonId,canView:true}).onConflictDoUpdate({target:[entitlements.userId,entitlements.lessonId],set:{canView:true}}); refresh(); }
-export async function revokeLessonAccess(data: FormData) { await authorize(); const userId=value(data,"userId"),lessonId=number(data,"lessonId"); if(!userId||!lessonId)return; await getDb().insert(entitlements).values({userId,lessonId,canView:false}).onConflictDoUpdate({target:[entitlements.userId,entitlements.lessonId],set:{canView:false}}); refresh(); }
+import { createSupabaseServer } from "@/lib/supabase/server";
+async function db(){const user=await requireChatGPTUser("/admin");await ensureOwner(user);return createSupabaseServer();}
+const v=(d:FormData,k:string)=>String(d.get(k)||"").trim(),n=(d:FormData,k:string)=>Number(v(d,k)||0),slug=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||`item-${Date.now()}`;
+const refresh=()=>{revalidatePath("/");revalidatePath("/learn");revalidatePath("/admin")};
+export async function addProgram(d:FormData){const sb=await db(),title=v(d,"title");if(!title)return;await sb.from("programs").insert({slug:slug(v(d,"slug")||title),title,subtitle:v(d,"subtitle"),description:v(d,"description"),cover_image:v(d,"coverImage"),price_thb:n(d,"priceThb"),status:v(d,"status")||"draft",sort_order:n(d,"sortOrder")});refresh()}
+export async function updateProgram(d:FormData){const sb=await db();await sb.from("programs").update({title:v(d,"title"),subtitle:v(d,"subtitle"),description:v(d,"description"),cover_image:v(d,"coverImage"),price_thb:n(d,"priceThb"),status:v(d,"status"),sort_order:n(d,"sortOrder")}).eq("id",v(d,"id"));refresh()}
+export async function addTopic(d:FormData){const sb=await db(),title=v(d,"title");if(!title)return;await sb.from("topics").insert({program_id:v(d,"programId"),slug:slug(v(d,"slug")||title),title,description:v(d,"description"),cover_image:v(d,"coverImage"),status:v(d,"status")||"draft",sort_order:n(d,"sortOrder")});refresh()}
+export async function updateTopic(d:FormData){const sb=await db();await sb.from("topics").update({title:v(d,"title"),description:v(d,"description"),cover_image:v(d,"coverImage"),status:v(d,"status"),sort_order:n(d,"sortOrder")}).eq("id",v(d,"id"));refresh()}
+export async function addLesson(d:FormData){const sb=await db(),title=v(d,"title");if(!title)return;await sb.from("lessons").insert({topic_id:v(d,"topicId"),title,description:v(d,"description"),access_type:v(d,"accessType")==="free"?"free":"paid",cover_image:v(d,"coverImage"),duration:v(d,"duration"),status:v(d,"status")||"draft",sort_order:n(d,"sortOrder")});refresh()}
+export async function updateLesson(d:FormData){const sb=await db();await sb.from("lessons").update({title:v(d,"title"),description:v(d,"description"),access_type:v(d,"accessType")==="free"?"free":"paid",cover_image:v(d,"coverImage"),duration:v(d,"duration"),status:v(d,"status"),sort_order:n(d,"sortOrder")}).eq("id",v(d,"id"));refresh()}
+export async function grantLessonAccess(d:FormData){const sb=await db();await sb.from("entitlements").upsert({user_id:v(d,"userId"),lesson_id:v(d,"lessonId"),can_view:true},{onConflict:"user_id,lesson_id"});refresh()}
+export async function revokeLessonAccess(d:FormData){const sb=await db();await sb.from("entitlements").upsert({user_id:v(d,"userId"),lesson_id:v(d,"lessonId"),can_view:false},{onConflict:"user_id,lesson_id"});refresh()}

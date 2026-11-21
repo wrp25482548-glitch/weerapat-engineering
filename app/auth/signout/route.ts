@@ -1,0 +1,3 @@
+import { NextResponse } from "next/server";
+import { createSupabaseServer } from "@/lib/supabase/server";
+export async function GET(request:Request){const sb=await createSupabaseServer();await sb.auth.signOut();const url=new URL(request.url);return NextResponse.redirect(new URL(url.searchParams.get("returnTo")||"/",url.origin));}

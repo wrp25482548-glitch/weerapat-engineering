@@ -1,15 +1,3 @@
-import { and, eq } from "drizzle-orm";
 import type { ChatGPTUser } from "@/app/chatgpt-auth";
-import { getDb } from "@/db";
-import { admins, entitlements, lessons } from "@/db/schema";
-
-export async function canViewLesson(user:ChatGPTUser|null,lesson:typeof lessons.$inferSelect){
-  if(lesson.status!=="published")return false;
-  if(lesson.accessType==="free")return true;
-  if(!user)return false;
-  const db=getDb();
-  const admin=await db.select({id:admins.id}).from(admins).where(eq(admins.userId,user.userId)).limit(1);
-  if(admin.length)return true;
-  const right=await db.select({canView:entitlements.canView}).from(entitlements).where(and(eq(entitlements.userId,user.userId),eq(entitlements.lessonId,lesson.id))).limit(1);
-  return right[0]?.canView===true;
-}
+import { createSupabaseServer } from "@/lib/supabase/server";
+export async function canViewLesson(user:ChatGPTUser|null,lesson:any){if(lesson.status!=="published")return false;if(lesson.accessType==="free"||lesson.access_type==="free")return true;if(!user)return false;const sb=await createSupabaseServer();const [{data:profile},{data:right}]=await Promise.all([sb.from("profiles").select("role").eq("id",user.userId).maybeSingle(),sb.from("entitlements").select("can_view").eq("user_id",user.userId).eq("lesson_id",lesson.id).maybeSingle()]);return profile?.role==="admin"||right?.can_view===true;}

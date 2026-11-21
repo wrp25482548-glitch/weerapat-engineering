@@ -2,14 +2,19 @@
 
 import { useState } from "react";
 
-export function VideoUploader({lessonId,hasVideo}:{lessonId:number;hasVideo:boolean}){
+export function VideoUploader({lessonId,hasVideo}:{lessonId:string;hasVideo:boolean}){
   const [file,setFile]=useState<File|null>(null);
   const [progress,setProgress]=useState("");
   async function upload(){
     if(!file)return;
     setProgress("กำลังอัปโหลด...");
-    const response=await fetch(`/api/admin/videos?lessonId=${lessonId}`,{method:"PUT",headers:{"content-type":file.type||"video/mp4","x-file-name":encodeURIComponent(file.name)},body:file});
-    if(!response.ok){setProgress((await response.text())||"อัปโหลดไม่สำเร็จ");return;}
+    const response=await fetch(`/api/admin/videos`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({lessonId,fileName:file.name,type:file.type})});
+    if(!response.ok){setProgress((await response.text())||"เตรียมอัปโหลดไม่สำเร็จ");return;}
+    const signed=await response.json() as {signedUrl:string;path:string};
+    const upload=await fetch(signed.signedUrl,{method:"PUT",headers:{"content-type":file.type||"video/mp4"},body:file});
+    if(!upload.ok){setProgress("อัปโหลดไฟล์ไม่สำเร็จ");return;}
+    const saved=await fetch(`/api/admin/videos`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({lessonId,path:signed.path})});
+    if(!saved.ok){setProgress((await saved.text())||"บันทึกวิดีโอไม่สำเร็จ");return;}
     setProgress("อัปโหลดสำเร็จ");
     window.location.reload();
   }
