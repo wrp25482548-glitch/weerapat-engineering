@@ -43,6 +43,8 @@
   "exclude": [
     "node_modules",
     "examples",
+    "components/ui",
+    "components/connector-error.tsx",
     "db",
     "worker",
     "vite.config.ts",
