@@ -1,0 +1,10 @@
+"use client";
+
+import { ChangeEvent, useState } from "react";
+
+type Kind="program"|"topic"|"lesson";
+export function ImageUploader({kind,id,currentUrl,label,help}:{kind:Kind;id:string;currentUrl?:string;label:string;help:string}){
+  const [preview,setPreview]=useState(currentUrl||"");const [message,setMessage]=useState("");const [busy,setBusy]=useState(false);
+  async function choose(event:ChangeEvent<HTMLInputElement>){const file=event.target.files?.[0];if(!file)return;if(!["image/jpeg","image/png","image/webp"].includes(file.type)){setMessage("รองรับเฉพาะ JPG, PNG และ WebP");return}if(file.size>2*1024*1024){setMessage("ไฟล์ใหญ่เกิน 2 MB กรุณาลดขนาดก่อน");return}setBusy(true);setMessage("กำลังอัปโหลด...");const reader=new FileReader();reader.onload=async()=>{const dataUrl=String(reader.result||"");setPreview(dataUrl);const response=await fetch("/api/admin/images",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({kind,id,image:dataUrl})});setBusy(false);setMessage(response.ok?"บันทึกภาพแล้ว":await response.text()||"อัปโหลดไม่สำเร็จ")};reader.onerror=()=>{setBusy(false);setMessage("อ่านไฟล์ไม่สำเร็จ")};reader.readAsDataURL(file)}
+  return <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4"><div className="flex gap-4"><div className="h-24 w-32 shrink-0 overflow-hidden rounded-xl bg-slate-200">{preview?<img src={preview} alt="ตัวอย่างภาพปก" className="h-full w-full object-cover"/>:<div className="grid h-full place-items-center text-xs text-slate-500">ยังไม่มีภาพ</div>}</div><div className="min-w-0"><p className="font-bold">{label}</p><p className="mt-1 text-xs text-slate-500">{help}<br/>JPG, WebP หรือ PNG • ไม่เกิน 2 MB</p><label className="mt-3 inline-flex cursor-pointer rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-blue-600"><input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={choose} disabled={busy}/>{busy?"กำลังอัปโหลด":"เลือกภาพจากเครื่อง"}</label></div></div>{message&&<p className="mt-2 text-sm font-semibold text-blue-700">{message}</p>}</div>
+}
