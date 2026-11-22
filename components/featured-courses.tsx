@@ -85,7 +85,7 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
       <button onClick={() => go(active + 1)} aria-label="คอร์สถัดไป">→</button>
     </div>
     <div className="featured-rail" ref={rail} onScroll={syncActive} aria-label="คอร์สแนะนำ เลื่อนซ้ายหรือขวาเพื่อดูคอร์สทั้งหมด">
-      {programs.map((program, index) => <a className={`featured-card${program.status === "published" ? " clickable" : ""}`} key={program.id} href={program.status === "published" ? "/learn" : undefined} aria-disabled={program.status !== "published"}>
+      {programs.map((program, index) => <a className={`featured-card${program.status === "published" ? " clickable" : ""}${index === active ? " active" : ""}`} key={program.id} href={program.status === "published" ? "/learn" : undefined} aria-disabled={program.status !== "published"}>
         <div className="featured-image">
           <Image src={program.coverImage || "/covers/solidworks-design.png"} alt={program.title} fill sizes="(max-width: 760px) 88vw, 430px" />
           <span className={program.status === "published" ? "cover-badge live" : "cover-badge"}>{program.status === "published" ? "เปิดให้เรียนแล้ว" : "เร็ว ๆ นี้"}</span>
