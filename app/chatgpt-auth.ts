@@ -10,10 +10,11 @@ export type ChatGPTUser = {
 
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   const supabase=await createSupabaseServer();
-  const {data:{user}}=await supabase.auth.getUser();
-  if(!user)return null;
-  const fullName=String(user.user_metadata?.display_name||user.user_metadata?.full_name||user.email||"ผู้เรียน");
-  return {userId:user.id,displayName:fullName,email:user.email||"",fullName};
+  const {data,error}=await supabase.auth.getClaims();
+  const claims=data?.claims as {sub?:string;email?:string;user_metadata?:{display_name?:string;full_name?:string}}|undefined;
+  if(error||!claims?.sub)return null;
+  const fullName=String(claims.user_metadata?.display_name||claims.user_metadata?.full_name||claims.email||"ผู้เรียน");
+  return {userId:claims.sub,displayName:fullName,email:claims.email||"",fullName};
 }
 
 export async function requireChatGPTUser(
