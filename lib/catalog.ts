@@ -3,7 +3,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 const mapProgram=(r:any)=>({...r,coverImage:r.cover_image,priceThb:r.price_thb,sortOrder:r.sort_order});
 const mapTopic=(r:any)=>({...r,programId:r.program_id,coverImage:r.cover_image,sortOrder:r.sort_order});
 const mapLesson=(r:any)=>({...r,topicId:r.topic_id,videoKey:r.video_path,accessType:r.access_type,coverImage:r.cover_image,sortOrder:r.sort_order});
-const fallbackCatalog = [
+export const fallbackCatalog = [
   {
     id: "solidworks-design",
     slug: "solidworks-design",
@@ -37,5 +37,5 @@ const fallbackCatalog = [
 ];
 export async function ensureOwner(user:ChatGPTUser){const sb=await createSupabaseServer();const {data}=await sb.from("profiles").select("role").eq("id",user.userId).single();if(data?.role!=="admin")throw new Error("บัญชีนี้ไม่มีสิทธิ์เข้าหลังบ้าน");return user;}
 export async function ensureLearner(user:ChatGPTUser){const sb=await createSupabaseServer();await sb.from("profiles").update({email:user.email,display_name:user.displayName}).eq("id",user.userId);return user;}
-export async function getCatalog(){const sb=await createSupabaseServer();const [{data:ps,error:pe},{data:ts,error:te},{data:ls,error:le}]=await Promise.all([sb.from("programs").select("*").order("sort_order"),sb.from("topics").select("*").order("sort_order"),sb.from("lessons").select("*").order("sort_order")]);if(pe||te||le){console.warn("Catalog database access unavailable; using local preview data.",pe||te||le);return fallbackCatalog;}const programs=(ps||[]).map(mapProgram),topics=(ts||[]).map(mapTopic),lessons=(ls||[]).map(mapLesson);return programs.map((p:any)=>({...p,topics:topics.filter((t:any)=>t.programId===p.id).map((t:any)=>({...t,lessons:lessons.filter((l:any)=>l.topicId===t.id)}))}));}
+export async function getCatalog(){const sb=await createSupabaseServer();const [{data:ps,error:pe},{data:ts,error:te},{data:ls,error:le}]=await Promise.all([sb.from("programs").select("*").order("sort_order"),sb.from("topics").select("*").order("sort_order"),sb.from("lessons").select("*").order("sort_order")]);if(pe||te||le){console.warn("Catalog database access unavailable; using local preview data.",pe||te||le);return fallbackCatalog;}const programs=(ps||[]).map(mapProgram),topics=(ts||[]).map(mapTopic),lessons=(ls||[]).map(mapLesson);const catalog=programs.map((p:any)=>({...p,topics:topics.filter((t:any)=>t.programId===p.id).map((t:any)=>({...t,lessons:lessons.filter((l:any)=>l.topicId===t.id)}))}));const existing=new Set(catalog.map((p:any)=>p.slug));return [...catalog,...fallbackCatalog.filter(p=>!existing.has(p.slug))];}
 export async function getLearners(){const sb=await createSupabaseServer();const {data}=await sb.from("profiles").select("id,email,display_name,role").order("created_at");return (data||[]).map((r:any)=>({userId:r.id,email:r.email,displayName:r.display_name,role:r.role}));}

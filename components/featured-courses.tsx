@@ -16,12 +16,20 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
   const rail = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
 
+  function scrollToCourse(index: number) {
+    const node = rail.current;
+    const child = node?.children[index] as HTMLElement | undefined;
+    if (!node || !child) return;
+    const left = child.offsetLeft - (node.clientWidth - child.offsetWidth) / 2;
+    node.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+  }
+
   useEffect(() => {
     if (programs.length < 2) return;
     const timer = window.setInterval(() => {
       setActive((current) => {
         const next = (current + 1) % programs.length;
-        rail.current?.children[next]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+        scrollToCourse(next);
         return next;
       });
     }, 5500);
@@ -30,7 +38,7 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
 
   function go(index: number) {
     const next = (index + programs.length) % programs.length;
-    rail.current?.children[next]?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    scrollToCourse(next);
     setActive(next);
   }
 
