@@ -13,8 +13,10 @@ type Program = {
 };
 
 export function FeaturedCourses({ programs }: { programs: Program[] }) {
+  const slider = useRef<HTMLDivElement>(null);
   const rail = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
 
   function scrollToCourse(index: number) {
     const node = rail.current;
@@ -25,7 +27,15 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
   }
 
   useEffect(() => {
-    if (programs.length < 2) return;
+    const node = slider.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting && entry.intersectionRatio >= 0.35), { threshold: [0, 0.35, 0.7] });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (programs.length < 2 || !isVisible) return;
     const timer = window.setInterval(() => {
       setActive((current) => {
         const next = (current + 1) % programs.length;
@@ -34,7 +44,7 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
       });
     }, 5500);
     return () => window.clearInterval(timer);
-  }, [programs.length]);
+  }, [programs.length, isVisible]);
 
   function go(index: number) {
     const next = (index + programs.length) % programs.length;
@@ -60,7 +70,7 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
     setActive(nearest);
   }
 
-  return <div className="featured-slider">
+  return <div className="featured-slider" ref={slider}>
     <div className="slider-controls" aria-label="เลื่อนคอร์สแนะนำ">
       <button onClick={() => go(active - 1)} aria-label="คอร์สก่อนหน้า">←</button>
       <button onClick={() => go(active + 1)} aria-label="คอร์สถัดไป">→</button>
