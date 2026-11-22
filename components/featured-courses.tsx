@@ -17,6 +17,7 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
   const rail = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [allowAutoplay, setAllowAutoplay] = useState(false);
 
   function scrollToCourse(index: number) {
     const node = rail.current;
@@ -27,6 +28,14 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
   }
 
   useEffect(() => {
+    const media = window.matchMedia("(min-width: 761px) and (hover: hover) and (pointer: fine)");
+    const sync = () => setAllowAutoplay(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
     const node = slider.current;
     if (!node) return;
     const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting && entry.intersectionRatio >= 0.35), { threshold: [0, 0.35, 0.7] });
@@ -35,7 +44,7 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
   }, []);
 
   useEffect(() => {
-    if (programs.length < 2 || !isVisible) return;
+    if (programs.length < 2 || !isVisible || !allowAutoplay) return;
     const timer = window.setInterval(() => {
       setActive((current) => {
         const next = (current + 1) % programs.length;
@@ -44,7 +53,7 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
       });
     }, 5500);
     return () => window.clearInterval(timer);
-  }, [programs.length, isVisible]);
+  }, [programs.length, isVisible, allowAutoplay]);
 
   function go(index: number) {
     const next = (index + programs.length) % programs.length;
