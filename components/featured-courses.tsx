@@ -85,7 +85,7 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
       <button onClick={() => go(active + 1)} aria-label="คอร์สถัดไป">→</button>
     </div>
     <div className="featured-rail" ref={rail} onScroll={syncActive} aria-label="คอร์สแนะนำ เลื่อนซ้ายหรือขวาเพื่อดูคอร์สทั้งหมด">
-      {programs.map((program, index) => <article className="featured-card" key={program.id}>
+      {programs.map((program, index) => <a className={`featured-card${program.status === "published" ? " clickable" : ""}`} key={program.id} href={program.status === "published" ? "/learn" : undefined} aria-disabled={program.status !== "published"}>
         <div className="featured-image">
           <Image src={program.coverImage || "/covers/solidworks-design.png"} alt={program.title} fill sizes="(max-width: 760px) 88vw, 430px" />
           <span className={program.status === "published" ? "cover-badge live" : "cover-badge"}>{program.status === "published" ? "เปิดให้เรียนแล้ว" : "เร็ว ๆ นี้"}</span>
@@ -95,9 +95,9 @@ export function FeaturedCourses({ programs }: { programs: Program[] }) {
           <h3>{program.title}</h3>
           <strong>{program.subtitle}</strong>
           <p>{program.description}</p>
-          <a className={program.status === "published" ? "featured-link" : "featured-link muted"} href={program.status === "published" ? "/learn" : undefined}>{program.status === "published" ? "เข้าสู่บทเรียน →" : "กำลังพัฒนา"}</a>
+          <span className={program.status === "published" ? "featured-link" : "featured-link muted"}>{program.status === "published" ? "กดที่การ์ดเพื่อเริ่มเรียน →" : "กำลังพัฒนา"}</span>
         </div>
-      </article>)}
+      </a>)}
     </div>
     <div className="slider-dots" aria-label={`คอร์สที่ ${active + 1} จาก ${programs.length}`}>
       {programs.map((program, index) => <button key={program.id} className={index === active ? "active" : ""} onClick={() => go(index)} aria-label={`ไปคอร์สที่ ${index + 1}`} />)}
