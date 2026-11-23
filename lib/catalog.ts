@@ -40,5 +40,13 @@ export const fallbackCatalog = [
 export async function ensureOwner(user:ChatGPTUser){const sb=await createSupabaseServer();const {data}=await sb.from("profiles").select("role").eq("id",user.userId).single();if(data?.role!=="admin")throw new Error("บัญชีนี้ไม่มีสิทธิ์เข้าหลังบ้าน");return user;}
 export async function ensureLearner(user:ChatGPTUser){const sb=await createSupabaseServer();await sb.from("profiles").update({email:user.email,display_name:user.displayName}).eq("id",user.userId);return user;}
 const loadCatalog=unstable_cache(async()=>{const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL||"https://rggehomgiolkfdvmqhih.supabase.co",process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||"sb_publishable_GlzQFoD6bcaeaxTiAGn0Xg_W8CXA1T_",{auth:{persistSession:false,autoRefreshToken:false}});const [{data:ps,error:pe},{data:ts,error:te},{data:ls,error:le}]=await Promise.all([sb.from("programs").select("*").order("sort_order"),sb.from("topics").select("*").order("sort_order"),sb.from("lessons").select("*").order("sort_order")]);if(pe||te||le){console.warn("Catalog database access unavailable; using local preview data.",pe||te||le);return fallbackCatalog;}const programs=(ps||[]).map(mapProgram),topics=(ts||[]).map(mapTopic),lessons=(ls||[]).map(mapLesson);const catalog=programs.map((p:any)=>({...p,topics:topics.filter((t:any)=>t.programId===p.id).map((t:any)=>({...t,lessons:lessons.filter((l:any)=>l.topicId===t.id)}))}));const existing=new Set(catalog.map((p:any)=>p.slug));return [...catalog,...fallbackCatalog.filter(p=>!existing.has(p.slug))];},["catalog"],{tags:["catalog"],revalidate:300});
-export async function getCatalog(){return loadCatalog();}
+export async function getCatalog(includeDrafts=false,includeComingSoon=false){
+  const catalog=await loadCatalog();
+  if(includeDrafts)return catalog;
+  return catalog
+    .filter((program:any)=>program.status==="published"||(includeComingSoon&&program.status==="coming-soon"))
+    .map((program:any)=>({...program,topics:program.topics
+      .filter((topic:any)=>topic.status==="published")
+      .map((topic:any)=>({...topic,lessons:topic.lessons.filter((lesson:any)=>lesson.status==="published")}))}));
+}
 export async function getLearners(){const sb=await createSupabaseServer();const {data}=await sb.from("profiles").select("id,email,display_name,role").order("created_at");return (data||[]).map((r:any)=>({userId:r.id,email:r.email,displayName:r.display_name,role:r.role}));}
