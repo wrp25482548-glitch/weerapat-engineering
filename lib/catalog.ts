@@ -2,9 +2,13 @@ import type { ChatGPTUser } from "@/app/chatgpt-auth";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
-const mapProgram=(r:any)=>({...r,coverImage:r.cover_image,priceThb:r.price_thb,sortOrder:r.sort_order});
-const mapTopic=(r:any)=>({...r,programId:r.program_id,coverImage:r.cover_image,sortOrder:r.sort_order});
-const mapLesson=(r:any)=>({...r,topicId:r.topic_id,videoKey:r.video_path,accessType:r.access_type,coverImage:r.cover_image,sortOrder:r.sort_order});
+const imagePath=(kind:string,id:unknown)=>`/api/images/${kind}/${encodeURIComponent(String(id))}`;
+const mapProgram=(r:any)=>({...r,coverImage:r.cover_image||imagePath("program",r.id),priceThb:r.price_thb,sortOrder:r.sort_order});
+const mapTopic=(r:any)=>({...r,programId:r.program_id,coverImage:r.cover_image||imagePath("topic",r.id),sortOrder:r.sort_order});
+const mapLesson=(r:any)=>({...r,topicId:r.topic_id,videoKey:r.video_path,accessType:r.access_type,coverImage:r.cover_image||imagePath("lesson",r.id),sortOrder:r.sort_order});
+const programFields="id,slug,title,subtitle,description,price_thb,status,sort_order,created_at";
+const topicFields="id,program_id,slug,title,description,status,sort_order,created_at";
+const lessonFields="id,topic_id,title,description,video_path,duration,access_type,status,sort_order,created_at";
 const assembleCatalog=(ps:any[]=[],ts:any[]=[],ls:any[]=[])=>{const programs=ps.map(mapProgram),topics=ts.map(mapTopic),lessons=ls.map(mapLesson);return programs.map((p:any)=>({...p,topics:topics.filter((t:any)=>t.programId===p.id).map((t:any)=>({...t,lessons:lessons.filter((l:any)=>l.topicId===t.id)}))}))};
 export const fallbackCatalog = [
   {
@@ -40,12 +44,18 @@ export const fallbackCatalog = [
 ];
 export async function ensureOwner(user:ChatGPTUser){const sb=await createSupabaseServer();const {data}=await sb.from("profiles").select("role").eq("id",user.userId).single();if(data?.role!=="admin")throw new Error("บัญชีนี้ไม่มีสิทธิ์เข้าหลังบ้าน");return user;}
 export async function ensureLearner(user:ChatGPTUser){const sb=await createSupabaseServer();await sb.from("profiles").update({email:user.email,display_name:user.displayName}).eq("id",user.userId);return user;}
-const loadCatalog=unstable_cache(async()=>{const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL||"https://rggehomgiolkfdvmqhih.supabase.co",process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||"sb_publishable_GlzQFoD6bcaeaxTiAGn0Xg_W8CXA1T_",{auth:{persistSession:false,autoRefreshToken:false}});const [{data:ps,error:pe},{data:ts,error:te},{data:ls,error:le}]=await Promise.all([sb.from("programs").select("*").order("sort_order"),sb.from("topics").select("*").order("sort_order"),sb.from("lessons").select("*").order("sort_order")]);if(pe||te||le){console.warn("Catalog database access unavailable; using local preview data.",pe||te||le);return fallbackCatalog;}const programs=(ps||[]).map(mapProgram),topics=(ts||[]).map(mapTopic),lessons=(ls||[]).map(mapLesson);const catalog=programs.map((p:any)=>({...p,topics:topics.filter((t:any)=>t.programId===p.id).map((t:any)=>({...t,lessons:lessons.filter((l:any)=>l.topicId===t.id)}))}));const existing=new Set(catalog.map((p:any)=>p.slug));return [...catalog,...fallbackCatalog.filter(p=>!existing.has(p.slug))];},["catalog"],{tags:["catalog"],revalidate:300});
+const loadCatalog=unstable_cache(async()=>{
+  const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL||"https://rggehomgiolkfdvmqhih.supabase.co",process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||"sb_publishable_GlzQFoD6bcaeaxTiAGn0Xg_W8CXA1T_",{auth:{persistSession:false,autoRefreshToken:false}});
+  const [{data:ps,error:pe},{data:ts,error:te},{data:ls,error:le}]=await Promise.all([sb.from("programs").select(programFields).order("sort_order"),sb.from("topics").select(topicFields).order("sort_order"),sb.from("lessons").select(lessonFields).order("sort_order")]);
+  if(pe||te||le){console.warn("Catalog database access unavailable; using local preview data.",pe||te||le);return fallbackCatalog;}
+  const catalog=assembleCatalog(ps||[],ts||[],ls||[]);const existing=new Set(catalog.map((p:any)=>p.slug));
+  return [...catalog,...fallbackCatalog.filter(p=>!existing.has(p.slug))];
+},["catalog-lightweight-v1"],{tags:["catalog"],revalidate:300});
 export async function getCatalog(includeDrafts=false,includeComingSoon=false){
   let catalog;
   if(includeDrafts){
     const sb=await createSupabaseServer();
-    const [{data:ps,error:pe},{data:ts,error:te},{data:ls,error:le}]=await Promise.all([sb.from("programs").select("*").order("sort_order"),sb.from("topics").select("*").order("sort_order"),sb.from("lessons").select("*").order("sort_order")]);
+    const [{data:ps,error:pe},{data:ts,error:te},{data:ls,error:le}]=await Promise.all([sb.from("programs").select(programFields).order("sort_order"),sb.from("topics").select(topicFields).order("sort_order"),sb.from("lessons").select(lessonFields).order("sort_order")]);
     if(pe||te||le)throw new Error(`โหลดข้อมูลหลังบ้านไม่สำเร็จ: ${(pe||te||le)?.message}`);
     catalog=assembleCatalog(ps||[],ts||[],ls||[]);
   }else catalog=await loadCatalog();
