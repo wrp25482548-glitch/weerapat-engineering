@@ -14,5 +14,8 @@ export async function GET(request:Request,{params}:{params:Promise<{kind:string;
   if(/^https?:\/\//i.test(value))return Response.redirect(value,307);
   const match=value.match(/^data:(image\/(?:jpeg|png|webp));base64,([\s\S]+)$/);
   if(!match)return new Response("Invalid image",{status:404});
-  return new Response(Buffer.from(match[2],"base64"),{headers:{"content-type":match[1],"cache-control":"public, max-age=300, s-maxage=300, stale-while-revalidate=86400"}});
+  const cacheControl = kind === "lesson"
+    ? "no-cache"
+    : "public, max-age=300, s-maxage=300, stale-while-revalidate=86400";
+  return new Response(Buffer.from(match[2],"base64"),{headers:{"content-type":match[1],"cache-control":cacheControl}});
 }
