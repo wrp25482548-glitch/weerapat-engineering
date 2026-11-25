@@ -47,10 +47,13 @@ export async function ensureLearner(user:ChatGPTUser){const sb=await createSupab
 const loadCatalog=unstable_cache(async()=>{
   const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL||"https://rggehomgiolkfdvmqhih.supabase.co",process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||"sb_publishable_GlzQFoD6bcaeaxTiAGn0Xg_W8CXA1T_",{auth:{persistSession:false,autoRefreshToken:false}});
   const [{data:ps,error:pe},{data:ts,error:te},{data:ls,error:le}]=await Promise.all([sb.from("programs").select(programFields).order("sort_order"),sb.from("topics").select(topicFields).order("sort_order"),sb.from("lessons").select(lessonFields).order("sort_order")]);
-  if(pe||te||le){console.warn("Catalog database access unavailable; using local preview data.",pe||te||le);return fallbackCatalog;}
-  const catalog=assembleCatalog(ps||[],ts||[],ls||[]);const existing=new Set(catalog.map((p:any)=>p.slug));
-  return [...catalog,...fallbackCatalog.filter(p=>!existing.has(p.slug))];
-},["catalog-lightweight-v1"],{tags:["catalog"],revalidate:300});
+  const error = pe || te || le;
+  if (error) {
+    console.error("Could not load Supabase catalog", error);
+    throw new Error("โหลดข้อมูลบทเรียนไม่สำเร็จ");
+  }
+  return assembleCatalog(ps || [], ts || [], ls || []);
+},["catalog-supabase-v2"],{tags:["catalog"],revalidate:300});
 export async function getCatalog(includeDrafts=false,includeComingSoon=false){
   let catalog;
   if(includeDrafts){
