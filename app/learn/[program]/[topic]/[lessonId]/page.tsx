@@ -62,8 +62,8 @@ export default async function LessonPage({params}:{params:Promise<{program:strin
             <a className="brand" href="/"><b>WEERAPAT</b><small>ENGINEERING</small></a>
             <Link href="/learn">บทเรียนทั้งหมด</Link>
           </header>
-          <div className="mx-auto grid max-w-7xl gap-6 px-5 py-8 md:grid-cols-[16rem_minmax(0,1fr)]">
-            <aside className="rounded-2xl border border-slate-200 bg-white p-4 self-start">
+          <div className="mx-auto grid max-w-7xl gap-4 px-3 py-4 md:grid-cols-[13rem_minmax(0,1fr)] md:px-6 md:py-6">
+            <aside className="self-start rounded-xl bg-slate-100 p-3">
               <details open>
                 <summary className="cursor-pointer font-bold">{topic.title}</summary>
                 {!progress.error && <div className="mt-3">
@@ -81,9 +81,9 @@ export default async function LessonPage({params}:{params:Promise<{program:strin
                 </nav>
               </details>
             </aside>
-            <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 md:p-8">
+            <section className="min-w-0 rounded-xl bg-white p-3 md:p-6">
               <p className="text-sm text-slate-600">{program.title} / {topic.title}</p>
-              <h1 className="mt-2 text-3xl font-bold">{lesson.title}</h1>
+              <h1 className="mt-2 text-xl font-bold md:text-3xl">{lesson.title}</h1>
               <LessonMedia key={lesson.id} lessonId={String(lesson.id)} title={lesson.title} embed={embed}
                 initialPage={progress.data?.find(row => row.lesson_id === lesson.id)?.last_page ?? 1}
                 completed={completed.has(lesson.id)} progressAvailable={!progress.error} saveProgress={saveProgress} />

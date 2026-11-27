@@ -14,6 +14,8 @@ export function SlideReader({ url, initialPage, savePage }: {
   const [notice, setNotice] = useState("");
   const [expanded, setExpanded] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
   const canvas = useRef<HTMLCanvasElement>(null);
   const saves = useRef(Promise.resolve());
 
@@ -35,13 +37,28 @@ export function SlideReader({ url, initialPage, savePage }: {
   }, [url, initialPage]);
 
   useEffect(() => {
-    if (!pdf) return;
+    const element = stage.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const next = Math.floor(entry.contentRect.width);
+      if (next > 0) setWidth(next);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!pdf || !width) return;
     let disposed = false;
     let cancel: (() => void) | undefined;
     void pdf.getPage(page).then(async slide => {
       const target = canvas.current;
       if (disposed || !target) return;
-      const viewport = slide.getViewport({ scale: 1.5 });
+      const native = slide.getViewport({ scale: 1 });
+      const displayWidth = Math.min(width, window.innerHeight * 0.8 * native.width / native.height);
+      const scale = Math.min(displayWidth * Math.min(window.devicePixelRatio || 1, 3), 3200) / native.width;
+      const viewport = slide.getViewport({ scale });
+      target.style.width = `${displayWidth}px`;
       target.width = Math.ceil(viewport.width);
       target.height = Math.ceil(viewport.height);
       const render = slide.render({ canvas: target, viewport });
@@ -49,7 +66,7 @@ export function SlideReader({ url, initialPage, savePage }: {
       await render.promise;
     }).catch(() => { if (!disposed) setError("แสดงหน้าสไลด์ไม่สำเร็จ"); });
     return () => { disposed = true; cancel?.(); };
-  }, [pdf, page]);
+  }, [pdf, page, width, expanded]);
 
   function move(next: number) {
     setPage(next);
@@ -69,23 +86,25 @@ export function SlideReader({ url, initialPage, savePage }: {
     return () => window.removeEventListener("keydown", onKey);
   }, [expanded]);
 
-  return <div ref={panel} className={`overflow-auto bg-white p-3 ${expanded ? "fixed inset-0 z-[100]" : "rounded-xl"}`}>
-    <div className="mb-3 flex flex-wrap items-center gap-3">
-      <button type="button" className="btn" disabled={!pdf || page <= 1} onClick={() => move(page - 1)}>ก่อนหน้า</button>
+  return <div ref={panel} className={`overflow-auto bg-white ${expanded ? "fixed inset-0 z-[100] p-2" : "rounded-xl"}`}>
+    <div ref={stage} className="grid place-items-center overflow-hidden rounded-xl bg-slate-50">
+      {error ? <p role="alert" className="p-4">{error}</p> : pdf
+        ? <canvas ref={canvas} aria-label={`สไลด์หน้า ${page}`} className="block h-auto max-w-full" />
+        : <p role="status" className="p-4">กำลังโหลดสไลด์…</p>}
+    </div>
+    <div className="mt-2 flex flex-wrap items-center justify-center gap-2 text-sm">
+      <button type="button" className="min-h-11 min-w-11 rounded-lg border disabled:opacity-35" aria-label="ก่อนหน้า" disabled={!pdf || page <= 1} onClick={() => move(page - 1)}>‹</button>
       <span aria-live="polite">{pdf ? `${page} / ${pdf.numPages}` : "—"}</span>
-      <button type="button" className="btn" disabled={!pdf || page >= pdf.numPages} onClick={() => move(page + 1)}>ถัดไป</button>
-      <button type="button" className="btn" onClick={async () => {
+      <button type="button" className="min-h-11 min-w-11 rounded-lg border disabled:opacity-35" aria-label="ถัดไป" disabled={!pdf || page >= pdf.numPages} onClick={() => move(page + 1)}>›</button>
+      <button type="button" className="min-h-11 rounded-lg px-2 text-slate-700 hover:bg-slate-100" onClick={async () => {
         if (expanded) { setExpanded(false); return; }
         try {
           if (document.fullscreenElement) await document.exitFullscreen();
           else await panel.current?.requestFullscreen();
         } catch { setExpanded(true); }
-      }}>{expanded ? "ออกจากมุมมองเต็มจอ" : "สลับเต็มหน้าจอ"}</button>
-      <a href={url} target="_blank" rel="noreferrer">เปิด PDF</a>
+      }}>{expanded ? "ออกจากเต็มจอ" : "เต็มจอ"}</button>
+      <a href={url} className="px-2 text-sm text-slate-600 underline" target="_blank" rel="noreferrer">PDF</a>
     </div>
-    {error ? <p role="alert">{error}</p> : pdf
-      ? <canvas ref={canvas} aria-label={`สไลด์หน้า ${page}`} className="mx-auto max-h-[80vh] max-w-full object-contain" />
-      : <p role="status">กำลังโหลดสไลด์…</p>}
-    {notice && <p role="status">{notice}</p>}
+    {notice && <p role="status" className="mt-1 text-center text-xs text-slate-600">{notice}</p>}
   </div>;
 }
